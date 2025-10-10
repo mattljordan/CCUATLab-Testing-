@@ -141,8 +141,7 @@ steps:
                     $policy | ConvertTo-Json -Depth 5 | Set-Content -Path policy.json
 
                     # Step: Commit and push policy.json to GitHub
-                    - task: 'PowerShell@2'
-                        displayName: 'Commit and Push policy.json to GitHub'
+                    
                         env:
                             GITHUB_TOKEN: $(GITHUB_TOKEN)
                         inputs:
