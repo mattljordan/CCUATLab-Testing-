@@ -138,7 +138,8 @@ steps:
                 Write-Host "iOS Compliance Policy $($OSCompliancePolicy.displayName) already on latest Build: $Build" -ForegroundColor Cyan
                 Write-Host
             }
-                    $OSCompliancePolicies | ConvertTo-Json -Depth 5 | Set-Content -Path policy($date).json
+                    $gitpath = policy($date).json
+                    $OSCompliancePolicies | ConvertTo-Json -Depth 5 | Set-Content -Path $gitpath
 
                     
                                 git config --global user.email "mattljordan@users.noreply.github.com"
