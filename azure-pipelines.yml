@@ -21,6 +21,7 @@ steps:
         $tenantid = '7b2d2c71-15d0-416f-afbb-bf763fb7cfe8'
         # Use the UAT_SECRECT GitHub Actions secret for the client secret
         $secret = $env:UAT_SECRECT
+
         $body =  @{
             Grant_Type    = "client_credentials"
             Scope         = "https://graph.microsoft.com/.default"
@@ -34,16 +35,6 @@ steps:
         $token = $connection.access_token
         # Prepare authorization header for web requests
         $headers = @{ Authorization = "Bearer $token"; 'Content-Type' = 'application/json' }
-
-             # Step 2: Retrieve device compliance policy and save to file
-        
-                
-                $headers = @{ Authorization = "Bearer $token"; 'Content-Type' = 'application/json' }
-                $graphApiVersion = 'Beta'
-                $Resource = 'deviceManagement/deviceCompliancePolicies/dcf4a2bc-4df7-473e-9c23-acb9e7f8c991'
-                $uri = "https://graph.microsoft.com/$graphApiVersion/$Resource"
-                $policy = Invoke-RestMethod -Uri $uri -Headers $headers -Method Get
-                $policy | ConvertTo-Json -Depth 5 | Set-Content -Path policy.json
         
         # Step 3: Function to test if a JSON string is valid
         Function Test-JSON() {
@@ -147,5 +138,22 @@ steps:
                 Write-Host "iOS Compliance Policy $($OSCompliancePolicy.displayName) already on latest Build: $Build" -ForegroundColor Cyan
                 Write-Host
             }
+                    $policy | ConvertTo-Json -Depth 5 | Set-Content -Path policy.json
+
+                    # Step: Commit and push policy.json to GitHub
+                    - task: 'PowerShell@2'
+                        displayName: 'Commit and Push policy.json to GitHub'
+                        env:
+                            GITHUB_TOKEN: $(GITHUB_TOKEN)
+                        inputs:
+                            targetType: 'inline'
+                            pwsh: true
+                            script: |
+                                git config --global user.email "mattljordan@users.noreply.github.com"
+                                git config --global user.name "mattljordan"
+                                git add policy.json
+                                git commit -m "Automated backup of policy.json [skip ci]" || echo "No changes to commit"
+                                git remote set-url origin https://mattljordan:${env:GITHUB_TOKEN}@github.com/mattljordan/$(Build.Repository.Name).git
+                                git push origin HEAD:$(Build.SourceBranchName)
         }
 
