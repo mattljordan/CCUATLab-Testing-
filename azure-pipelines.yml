@@ -21,7 +21,6 @@ steps:
         $tenantid = '7b2d2c71-15d0-416f-afbb-bf763fb7cfe8'
         # Use the UAT_SECRECT GitHub Actions secret for the client secret
         $secret = $env:UAT_SECRECT
-
         $body =  @{
             Grant_Type    = "client_credentials"
             Scope         = "https://graph.microsoft.com/.default"
