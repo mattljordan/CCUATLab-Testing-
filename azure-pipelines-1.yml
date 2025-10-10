@@ -1,29 +1,37 @@
-steps:
-  # Step 1: Install Microsoft.Graph Module
-  - task: PowerShell@2
-    displayName: 'Step 1: Install Microsoft.Graph Module'
-    inputs:
-      targetType: 'inline'
-      script: |
-        Install-Module -Name Microsoft.Graph -Force -Scope CurrentUser
-        Import-Module Microsoft.Graph
-      pwsh: true
 
-  # Step 2: Run iOS Update Compliance Script
+steps:
+  # Step: Restore a backup JSON to policy using Update-DeviceCompliancePolicy
   - task: PowerShell@2
-    displayName: 'Step 2: Run iOS Update Compliance Script'
+    displayName: 'Restore Compliance Policy from Backup'
     env:
       UAT_SECRECT: $(UAT_SECRECT)
     inputs:
       targetType: 'inline'
       pwsh: true
       script: |
-        # Step 2.1: Authenticate to Microsoft Graph using client credentials
+        # Function to update a device compliance policy
+        Function Update-DeviceCompliancePolicy() {
+            param (
+                [string]$JSON
+            )
+            $graphApiVersion = 'Beta'
+            $Resource = "deviceManagement/deviceCompliancePolicies/dcf4a2bc-4df7-473e-9c23-acb9e7f8c991"
+            try {
+                Test-Json -Json $JSON
+                $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
+                Invoke-RestMethod -Uri $uri -Headers $headers -Method Patch -Body $JSON -ContentType 'application/json'
+                Write-Host "Policy restored successfully." -ForegroundColor Green
+            }
+            catch {
+                Write-Error $_.Exception.Message
+                return
+            }
+        }
+
+        # Authenticate to Microsoft Graph
         $appid = '573989b7-ae80-4bad-9404-fb134eec76d5'
         $tenantid = '7b2d2c71-15d0-416f-afbb-bf763fb7cfe8'
-        # Use the UAT_SECRECT GitHub Actions secret for the client secret
         $secret = $env:UAT_SECRECT
-
         $body =  @{
             Grant_Type    = "client_credentials"
             Scope         = "https://graph.microsoft.com/.default"
@@ -35,110 +43,19 @@ steps:
             -Method POST `
             -Body $body
         $token = $connection.access_token
-        $accesstokenfinal = ConvertTo-SecureString -String $token -AsPlainText -Force
-        Connect-MgGraph -AccessToken $accesstokenfinal -NoWelcome
+        $headers = @{ Authorization = "Bearer $token"; 'Content-Type' = 'application/json' }
 
-        # Step 2.2: Function to test if a JSON string is valid
-        Function Test-JSON() {
-            param (
-                $JSON
-            )
-            try {
-                $TestJSON = ConvertFrom-Json $JSON -ErrorAction Stop
-                $validJson = $true
-            }
-            catch {
-                $validJson = $false
-                $_.Exception
-            }
-            if (!$validJson) {
-                Write-Host "Provided JSON isn't in valid JSON format" -f Red
-                break
-            }
+        # Authenticate to GitHub for any git operations
+        git config --global user.email "mattljordan@users.noreply.github.com"
+        git config --global user.name "mattljordan"
+
+        # Automatically find the latest policy-*.json backup file
+        $backupFile = Get-ChildItem -Path . -Filter 'policy-*.json' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        if ($null -eq $backupFile) {
+            Write-Error "No policy backup files found."
+            exit 1
         }
-
-        # Step 2.3: Function to retrieve device compliance policies from Microsoft Graph API
-        Function Get-DeviceCompliancePolicy() {
-            [cmdletbinding()]
-            $graphApiVersion = 'Beta'
-            $Resource = 'deviceManagement/deviceCompliancePolicies'
-            try {
-                $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
-                (Invoke-MgGraphRequest -Uri $uri -Method Get).Value
-            }
-            catch {
-                Write-Error $Error[0].ErrorDetails.Message
-                break
-            }
-        }
-
-        # Step 2.4: Function to update a device compliance policy using Microsoft Graph API
-        Function Update-DeviceCompliancePolicy() {
-            $graphApiVersion = 'Beta'
-            $Resource = "deviceManagement/deviceCompliancePolicies/dcf4a2bc-4df7-473e-9c23-acb9e7f8c991"
-            try {
-                Test-Json -Json $JSON
-                $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
-                Invoke-MgGraphRequest -Uri $uri -Method Patch -Body $JSON -ContentType 'application/json'
-            }
-            catch {
-                Write-Error $Error[0].ErrorDetails.Message
-                break
-            }
-        }
-
-        # Step 2.5: Function to get the latest Apple iOS/macOS updates from the Apple Developer RSS feed
-        Function Get-AppleUpdates() {
-            try {
-                $uri = 'https://developer.apple.com/news/releases/rss/releases.rss'
-                [xml]$Updates = (Invoke-WebRequest -Uri $uri -UseBasicParsing -ContentType 'application/xml').Content -replace '[^\x09\x0A\x0D\x20-\xD7FF\xE000-\xFFFD\x10000-x10FFFF]', ''
-                $BuildVersion = @()
-                foreach ($Update in $Updates.rss.channel.Item) {
-                    if (($Update.title -like "*iOS*") -and ($Update.title -like "*26*") -and ($Update.title -notlike "*Beta*")) {
-                        $BuildVersion += $Update.title
-                    }
-                }
-                return $BuildVersion[0]
-            }
-            catch {
-                Write-Error $Error[0].ErrorDetails.Message
-                break
-            }
-        }
-
-        # Step 2.6: Get current date and set update description
-        $Date = Get-Date -Format 'dd-MM-yyyy hh:mm:ss'
-        $Description = "Updated Operating System Device Compliance Policy on $Date"
-
-        # Step 2.7: Retrieve the specific device compliance policy by ID
-        $OSCompliancePolicies = Get-DeviceCompliancePolicy | Where-Object { ($_.id) -eq "dcf4a2bc-4df7-473e-9c23-acb9e7f8c991" }
-
-        # Step 2.8: Extract the major version from the current minimum OS version
-        $Version = $OSCompliancePolicies.osMinimumVersion.SubString(0, 2)
-
-        # Step 2.9: Get the latest Apple iOS update for the detected version
-        $AppleUpdate = Get-AppleUpdates -OS iOS -Version $Version
-        if ($null -eq $AppleUpdate -or $AppleUpdate -eq "") {
-            Write-Host "Apple update result is null or empty for iOS. Skipping policy update." -ForegroundColor Yellow
-        } else {
-            # Step 2.10: Extract the build version number from the update string
-            $Build = ($AppleUpdate | Select-String '\b\d+\.\d+\.\d+\b' -AllMatches).Matches.Value
-            # Step 2.11: Compare current policy version to latest build
-            if ($OSCompliancePolicies.osMinimumVersion -ne $Build) {
-                # Step 2.12: Prepare update object for PATCH request
-                $Update = New-Object -TypeName psobject
-                $Update | Add-Member -MemberType NoteProperty -Name '@odata.type' -Value $OSCompliancePolicies.'@odata.type'
-                $Update | Add-Member -MemberType NoteProperty -Name 'description' -Value $Description
-                $Update | Add-Member -MemberType NoteProperty -Name 'osMinimumVersion' -Value $Build
-
-                # Step 2.13: Convert update object to JSON and send PATCH request
-                $JSON = $Update | ConvertTo-Json -Depth 3
-                Update-DeviceCompliancePolicy -Id $OSCompliancePolicies.id -JSON $JSON
-                Write-Host "Updated iOS Compliance Policy $($OSCompliancePolicies.displayName) with latest Build: $Build" -ForegroundColor Green
-                Write-Host
-            } else {
-                Write-Host "iOS Compliance Policy $($OSCompliancePolicies.displayName) already on latest Build: $Build" -ForegroundColor Cyan
-                Write-Host
-            }
-        }
+        Write-Host "Restoring from latest backup: $($backupFile.Name)"
+        $json = Get-Content $backupFile.FullName -Raw
+        Update-DeviceCompliancePolicy -JSON $json
 
