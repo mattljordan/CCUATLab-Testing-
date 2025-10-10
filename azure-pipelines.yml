@@ -37,7 +37,7 @@ steps:
 
              # Step 2: Retrieve device compliance policy and save to file
         
-                $token = Get-Content token.txt
+                
                 $headers = @{ Authorization = "Bearer $token"; 'Content-Type' = 'application/json' }
                 $graphApiVersion = 'Beta'
                 $Resource = 'deviceManagement/deviceCompliancePolicies/dcf4a2bc-4df7-473e-9c23-acb9e7f8c991'
