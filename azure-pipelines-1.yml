@@ -47,17 +47,17 @@ steps:
                 }
             }
 
-             # Step 4: Function to retrieve device compliance policies from Microsoft Graph API using web request
+              # Step 2.3: Function to retrieve device compliance policies from Microsoft Graph API
         Function Get-DeviceCompliancePolicy() {
             [cmdletbinding()]
             $graphApiVersion = 'Beta'
             $Resource = 'deviceManagement/deviceCompliancePolicies'
             try {
                 $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
-                (Invoke-RestMethod -Uri $uri -Headers $headers -Method Get).value
+                (Invoke-MgGraphRequest -Uri $uri -Method Get).Value
             }
             catch {
-                Write-Error $_.Exception.Message
+                 Write-Error $_.Exception.Message
                 break
             }
         }
@@ -85,11 +85,12 @@ steps:
 
      
 
-        # Authenticate to GitHub for any git operations
+        # Clone the GitHub repo and get the latest policy-*.json backup file
         git config --global user.email "mattljordan@users.noreply.github.com"
         git config --global user.name "mattljordan"
+        git clone --depth 1 https://mattljordan:${env:GITHUB_TOKEN}@github.com/mattljordan/CCUATLab-Testing-.git repo
+        cd repo
 
-        # Automatically find the latest policy-*.json backup file
         $backupFile = Get-ChildItem -Path . -Filter 'policy-*.json' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
         if ($null -eq $backupFile) {
             Write-Error "No policy backup files found."
