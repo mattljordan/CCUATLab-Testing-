@@ -138,15 +138,17 @@ steps:
                 Write-Host "iOS Compliance Policy $($OSCompliancePolicy.displayName) already on latest Build: $Build" -ForegroundColor Cyan
                 Write-Host
             }
-                    $gitpath = "policy($date).json"
-                    $OSCompliancePolicies | ConvertTo-Json -Depth 5 | Set-Content -Path $gitpath
+                   
+                  $date = Get-Date -Format 'yyyyMMdd-HHmmss'
+        $filename = "policy-$date.json"
+        $policy | ConvertTo-Json -Depth 5 | Set-Content -Path $filename
 
-                    
-                                git config --global user.email "mattljordan@users.noreply.github.com"
-                                git config --global user.name "mattljordan"
-                                git add policy($date).json
-                                git commit -m "Automated backup of policy.json [skip ci]" || echo "No changes to commit"
-                                git remote set-url origin https://mattljordan:${env:GITHUB_TOKEN}@github.com/mattljordan/$(Build.Repository.Name).git
-                                git push origin HEAD:$(Build.SourceBranchName)
+        # Step: Commit and push $filename to GitHub
+        git config --global user.email "mattljordan@users.noreply.github.com"
+        git config --global user.name "mattljordan"
+        git add $filename
+        git commit -m "Automated backup of $filename [skip ci]" || echo "No changes to commit"
+        git remote set-url origin https://mattljordan:${env:GITHUB_TOKEN}@github.com/mattljordan/$(Build.Repository.Name).git
+        git push origin HEAD:$(Build.SourceBranchName)
         }
 
