@@ -8,28 +8,33 @@ steps:
         Import-Module Microsoft.Graph
       pwsh: true
 
-  - task: DownloadSecureFile@1
-    name: downloadCert
-    displayName: 'Download Auth Certificate'
-    inputs:
-      secureFile: 'UAT_APP_REG.pfx'  # Replace with your uploaded certificate file name
-
   - task: PowerShell@2
     displayName: 'Run iOS Update Compliance Script'
-    
+    env:
+     UAT_SECRECT: $(UAT_SECRECT)
     inputs:
       targetType: 'inline'
       pwsh: true
       script: |
-        $certPath = "$(downloadCert.secureFilePath)"
-        $certPassword = "$(CERT_PASSWORD)"  # Set this as a secret variable in your pipeline
-        $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($certPath, $certPassword, [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::Exportable)
-
+        # Authenticate to Microsoft Graph using client credentials
         $appid = '573989b7-ae80-4bad-9404-fb134eec76d5'
         $tenantid = '7b2d2c71-15d0-416f-afbb-bf763fb7cfe8'
+        # Use the UAT_SECRECT GitHub Actions secret for the client secret
+        $secret = $env:UAT_SECRECT
 
-        # Connect to Microsoft Graph using the certificate's thumbprint
-        Connect-MgGraph -ClientId $appid -TenantId $tenantid -CertificateThumbprint $cert.Thumbprint
+        $body =  @{
+            Grant_Type    = "client_credentials"
+            Scope         = "https://graph.microsoft.com/.default"
+            Client_Id     = $appid
+            Client_Secret = $secret
+        }
+        $connection = Invoke-RestMethod `
+            -Uri https://login.microsoftonline.com/$tenantid/oauth2/v2.0/token `
+            -Method POST `
+            -Body $body
+        $token = $connection.access_token
+        $accesstokenfinal = ConvertTo-SecureString -String $token -AsPlainText -Force
+        Connect-MgGraph -AccessToken $accesstokenfinal -NoWelcome
 
         # Function to test if a JSON string is valid
         Function Test-JSON() {
@@ -134,4 +139,4 @@ steps:
                 Write-Host
             }
         }
-
+           
