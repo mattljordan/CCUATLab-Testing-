@@ -9,21 +9,23 @@ steps:
       targetType: 'inline'
       pwsh: true
       script: |
-        # Authenticate to Microsoft Graph
-        $appid = '573989b7-ae80-4bad-9404-fb134eec76d5'
-        $tenantid = '7b2d2c71-15d0-416f-afbb-bf763fb7cfe8'
-        $secret = $env:UAT_SECRECT
-        $body =  @{
-            Grant_Type    = "client_credentials"
-            Scope         = "https://graph.microsoft.com/.default"
-            Client_Id     = $appid
-            Client_Secret = $secret
-        }
-        $connection = Invoke-RestMethod `
-            -Uri https://login.microsoftonline.com/$tenantid/oauth2/v2.0/token `
-            -Method POST `
-            -Body $body
-        $token = $connection.access_token
+        # Step 2: Authenticate to Microsoft Graph using client credentials
+            $appid = '573989b7-ae80-4bad-9404-fb134eec76d5'
+            $tenantid = '7b2d2c71-15d0-416f-afbb-bf763fb7cfe8'
+            # Use the UAT_SECRECT GitHub Actions secret for the client secret
+            $secret = $env:UAT_SECRECT
+            $body =  @{
+                Grant_Type    = "client_credentials"
+                Scope         = "https://graph.microsoft.com/.default"
+                Client_Id     = $appid
+                Client_Secret = $secret
+            }
+            $connection = Invoke-RestMethod `
+                -Uri https://login.microsoftonline.com/$tenantid/oauth2/v2.0/token `
+                -Method POST `
+                -Body $body
+            $token = $connection.access_token
+        # Prepare authorization header for web requests
         $headers = @{ Authorization = "Bearer $token"; 'Content-Type' = 'application/json' }
         # Step 3: Function to test if a JSON string is valid
             Function Test-JSON() {
