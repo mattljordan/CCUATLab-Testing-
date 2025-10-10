@@ -9,6 +9,25 @@ steps:
       targetType: 'inline'
       pwsh: true
       script: |
+        # Step 3: Function to test if a JSON string is valid
+            Function Test-JSON() {
+                param (
+                    $JSON
+                )
+                try {
+                    $TestJSON = ConvertFrom-Json $JSON -ErrorAction Stop
+                    $validJson = $true
+                }
+                catch {
+                    $validJson = $false
+                    $_.Exception
+                }
+                if (!$validJson) {
+                    Write-Host "Provided JSON isn't in valid JSON format" -f Red
+                    break
+                }
+            }
+
         # Function to update a device compliance policy
         Function Update-DeviceCompliancePolicy() {
             param (
