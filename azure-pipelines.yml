@@ -12,6 +12,8 @@ steps:
     displayName: 'Step 1: Run iOS Update Compliance Script'
     env:
       UAT_SECRECT: $(UAT_SECRECT)
+      env:
+      GITHUB_TOKEN: $(GITHUB_TOKEN)
     inputs:
       targetType: 'inline'
       pwsh: true
@@ -142,12 +144,8 @@ steps:
 
                     # Step: Commit and push policy.json to GitHub
                     
-                        env:
-                            GITHUB_TOKEN: $(GITHUB_TOKEN)
-                        inputs:
-                            targetType: 'inline'
-                            pwsh: true
-                            script: |
+                        
+                        |
                                 git config --global user.email "mattljordan@users.noreply.github.com"
                                 git config --global user.name "mattljordan"
                                 git add policy.json
