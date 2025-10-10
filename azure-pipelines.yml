@@ -12,8 +12,6 @@ steps:
     displayName: 'Step 1: Run iOS Update Compliance Script'
     env:
       UAT_SECRECT: $(UAT_SECRECT)
-      env:
-      GITHUB_TOKEN: $(GITHUB_TOKEN)
     inputs:
       targetType: 'inline'
       pwsh: true
@@ -140,14 +138,22 @@ steps:
                 Write-Host "iOS Compliance Policy $($OSCompliancePolicy.displayName) already on latest Build: $Build" -ForegroundColor Cyan
                 Write-Host
             }
-                    $OSCompliancePolicies | ConvertTo-Json -Depth 5 | Set-Content -Path "/compliancepolicy$date.json"
+                    $policy | ConvertTo-Json -Depth 5 | Set-Content -Path policy.json
 
                     # Step: Commit and push policy.json to GitHub
+                  
+                        displayName: 'Commit and Push policy.json to GitHub'
+                        env:
+                            GITHUB_TOKEN: $(GITHUB_TOKEN)
+                        inputs:
+                            targetType: 'inline'
+                            pwsh: true
+                            script: |
                                 git config --global user.email "mattljordan@users.noreply.github.com"
                                 git config --global user.name "mattljordan"
-                                git add "/compliancepolicy$date.json""
+                                git add policy.json
                                 git commit -m "Automated backup of policy.json [skip ci]" || echo "No changes to commit"
-                                git remote set-url origin https://mattljordan:${env:GITHUB_TOKEN}@github.com/$(Build.Repository.Name).git
+                                git remote set-url origin https://mattljordan:${env:GITHUB_TOKEN}@github.com/mattljordan/$(Build.Repository.Name).git
                                 git push origin HEAD:$(Build.SourceBranchName)
         }
 
