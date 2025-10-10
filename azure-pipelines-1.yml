@@ -57,7 +57,7 @@ steps:
                 (Invoke-MgGraphRequest -Uri $uri -Method Get).Value
             }
             catch {
-                Write-Error $Error[0].ErrorDetails.Message
+                 Write-Error $_.Exception.Message
                 break
             }
         }
@@ -78,7 +78,7 @@ steps:
                 Write-Host "Policy restored successfully." -ForegroundColor Green
             }
             catch {
-                Write-Error $_.Exception.Message
+                 Write-Error $_.Exception.Message
                 return
             }
         }
