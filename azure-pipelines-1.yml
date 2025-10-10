@@ -9,6 +9,22 @@ steps:
       targetType: 'inline'
       pwsh: true
       script: |
+        # Authenticate to Microsoft Graph
+        $appid = '573989b7-ae80-4bad-9404-fb134eec76d5'
+        $tenantid = '7b2d2c71-15d0-416f-afbb-bf763fb7cfe8'
+        $secret = $env:UAT_SECRECT
+        $body =  @{
+            Grant_Type    = "client_credentials"
+            Scope         = "https://graph.microsoft.com/.default"
+            Client_Id     = $appid
+            Client_Secret = $secret
+        }
+        $connection = Invoke-RestMethod `
+            -Uri https://login.microsoftonline.com/$tenantid/oauth2/v2.0/token `
+            -Method POST `
+            -Body $body
+        $token = $connection.access_token
+        $headers = @{ Authorization = "Bearer $token"; 'Content-Type' = 'application/json' }
         # Step 3: Function to test if a JSON string is valid
             Function Test-JSON() {
                 param (
@@ -47,22 +63,7 @@ steps:
             }
         }
 
-        # Authenticate to Microsoft Graph
-        $appid = '573989b7-ae80-4bad-9404-fb134eec76d5'
-        $tenantid = '7b2d2c71-15d0-416f-afbb-bf763fb7cfe8'
-        $secret = $env:UAT_SECRECT
-        $body =  @{
-            Grant_Type    = "client_credentials"
-            Scope         = "https://graph.microsoft.com/.default"
-            Client_Id     = $appid
-            Client_Secret = $secret
-        }
-        $connection = Invoke-RestMethod `
-            -Uri https://login.microsoftonline.com/$tenantid/oauth2/v2.0/token `
-            -Method POST `
-            -Body $body
-        $token = $connection.access_token
-        $headers = @{ Authorization = "Bearer $token"; 'Content-Type' = 'application/json' }
+     
 
         # Authenticate to GitHub for any git operations
         git config --global user.email "mattljordan@users.noreply.github.com"
