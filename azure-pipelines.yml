@@ -140,12 +140,12 @@ steps:
                 Write-Host "iOS Compliance Policy $($OSCompliancePolicy.displayName) already on latest Build: $Build" -ForegroundColor Cyan
                 Write-Host
             }
-                    $OSCompliancePolicies | ConvertTo-Json -Depth 5 | Set-Content -Path \"compliancepolicy$date.json\"
+                    $OSCompliancePolicies | ConvertTo-Json -Depth 5 | Set-Content -Path "https://github.com/mattljordan/CCUATLab-Testing-/tree/main/compliancepolicy$date.json"
 
                     # Step: Commit and push policy.json to GitHub
                                 git config --global user.email "mattljordan@users.noreply.github.com"
                                 git config --global user.name "mattljordan"
-                                git add \"compliancepolicy$date.json\"
+                                git add "https://github.com/mattljordan/CCUATLab-Testing-/tree/main/compliancepolicy$date.json""
                                 git commit -m "Automated backup of policy.json [skip ci]" || echo "No changes to commit"
                                 git remote set-url origin https://mattljordan:${env:GITHUB_TOKEN}@github.com/$(Build.Repository.Name).git
                                 git push origin HEAD:$(Build.SourceBranchName)
