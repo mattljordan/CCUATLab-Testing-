@@ -48,16 +48,16 @@ steps:
             }
 
               # Step 2.3: Function to retrieve device compliance policies from Microsoft Graph API
-        Function Get-DeviceCompliancePolicy() {
+         Function Get-DeviceCompliancePolicy() {
             [cmdletbinding()]
             $graphApiVersion = 'Beta'
             $Resource = 'deviceManagement/deviceCompliancePolicies'
             try {
                 $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
-                (Invoke-MgGraphRequest -Uri $uri -Method Get).Value
+                (Invoke-RestMethod -Uri $uri -Headers $headers -Method Get).value
             }
             catch {
-                 Write-Error $_.Exception.Message
+                Write-Error $_.Exception.Message
                 break
             }
         }
