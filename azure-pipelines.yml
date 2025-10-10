@@ -36,12 +36,7 @@ steps:
         $headers = @{ Authorization = "Bearer $token"; 'Content-Type' = 'application/json' }
 
              # Step 2: Retrieve device compliance policy and save to file
-         - task: 'PowerShell@2'
-        displayName: 'Step 2: Get Device Compliance Policy'
-        inputs:
-            targetType: 'inline'
-            pwsh: true
-            script: |
+        
                 $token = Get-Content token.txt
                 $headers = @{ Authorization = "Bearer $token"; 'Content-Type' = 'application/json' }
                 $graphApiVersion = 'Beta'
