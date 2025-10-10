@@ -35,7 +35,9 @@ steps:
         $token = $connection.access_token
         # Prepare authorization header for web requests
         $headers = @{ Authorization = "Bearer $token"; 'Content-Type' = 'application/json' }
-         - task: PowerShell@2
+
+             # Step 2: Retrieve device compliance policy and save to file
+         - task: 'PowerShell@2'
         displayName: 'Step 2: Get Device Compliance Policy'
         inputs:
             targetType: 'inline'
@@ -48,6 +50,7 @@ steps:
                 $uri = "https://graph.microsoft.com/$graphApiVersion/$Resource"
                 $policy = Invoke-RestMethod -Uri $uri -Headers $headers -Method Get
                 $policy | ConvertTo-Json -Depth 5 | Set-Content -Path policy.json
+        
         # Step 3: Function to test if a JSON string is valid
         Function Test-JSON() {
             param (
