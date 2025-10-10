@@ -140,7 +140,7 @@ steps:
                 Write-Host "iOS Compliance Policy $($OSCompliancePolicy.displayName) already on latest Build: $Build" -ForegroundColor Cyan
                 Write-Host
             }
-                    $OSCompliancePolicies | ConvertTo-Json -Depth 5 | Set-Content -Path compliancepolicy$date.json
+                    $OSCompliancePolicies | ConvertTo-Json -Depth 5 | Set-Content -Path \"compliancepolicy$date.json\"
 
                     # Step: Commit and push policy.json to GitHub
                                 git config --global user.email "mattljordan@users.noreply.github.com"
