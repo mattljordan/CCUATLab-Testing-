@@ -143,9 +143,6 @@ steps:
                     $policy | ConvertTo-Json -Depth 5 | Set-Content -Path policy.json
 
                     # Step: Commit and push policy.json to GitHub
-                    
-                        
-                        |
                                 git config --global user.email "mattljordan@users.noreply.github.com"
                                 git config --global user.name "mattljordan"
                                 git add policy.json
