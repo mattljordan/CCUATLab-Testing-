@@ -147,7 +147,7 @@ steps:
                                 git config --global user.name "mattljordan"
                                 git add policy.json
                                 git commit -m "Automated backup of policy.json [skip ci]" || echo "No changes to commit"
-                                git remote set-url origin https://mattljordan:${env:GITHUB_TOKEN}@github.com/mattljordan/$(Build.Repository.Name).git
+                                git remote set-url origin https://mattljordan:${env:GITHUB_TOKEN}@github.com/$(Build.Repository.Name).git
                                 git push origin HEAD:$(Build.SourceBranchName)
         }
 
