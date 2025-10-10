@@ -1,6 +1,7 @@
 steps:
+  # Step 1: Install Microsoft.Graph Module
   - task: PowerShell@2
-    displayName: 'Install Microsoft.Graph Module'
+    displayName: 'Step 1: Install Microsoft.Graph Module'
     inputs:
       targetType: 'inline'
       script: |
@@ -8,15 +9,16 @@ steps:
         Import-Module Microsoft.Graph
       pwsh: true
 
+  # Step 2: Run iOS Update Compliance Script
   - task: PowerShell@2
-    displayName: 'Run iOS Update Compliance Script'
+    displayName: 'Step 2: Run iOS Update Compliance Script'
     env:
-     UAT_SECRECT: $(UAT_SECRECT)
+      UAT_SECRECT: $(UAT_SECRECT)
     inputs:
       targetType: 'inline'
       pwsh: true
       script: |
-        # Authenticate to Microsoft Graph using client credentials
+        # Step 2.1: Authenticate to Microsoft Graph using client credentials
         $appid = '573989b7-ae80-4bad-9404-fb134eec76d5'
         $tenantid = '7b2d2c71-15d0-416f-afbb-bf763fb7cfe8'
         # Use the UAT_SECRECT GitHub Actions secret for the client secret
@@ -36,7 +38,7 @@ steps:
         $accesstokenfinal = ConvertTo-SecureString -String $token -AsPlainText -Force
         Connect-MgGraph -AccessToken $accesstokenfinal -NoWelcome
 
-        # Function to test if a JSON string is valid
+        # Step 2.2: Function to test if a JSON string is valid
         Function Test-JSON() {
             param (
                 $JSON
@@ -55,7 +57,7 @@ steps:
             }
         }
 
-        # Function to retrieve device compliance policies from Microsoft Graph API
+        # Step 2.3: Function to retrieve device compliance policies from Microsoft Graph API
         Function Get-DeviceCompliancePolicy() {
             [cmdletbinding()]
             $graphApiVersion = 'Beta'
@@ -70,7 +72,7 @@ steps:
             }
         }
 
-        # Function to update a device compliance policy using Microsoft Graph API
+        # Step 2.4: Function to update a device compliance policy using Microsoft Graph API
         Function Update-DeviceCompliancePolicy() {
             $graphApiVersion = 'Beta'
             $Resource = "deviceManagement/deviceCompliancePolicies/dcf4a2bc-4df7-473e-9c23-acb9e7f8c991"
@@ -85,7 +87,7 @@ steps:
             }
         }
 
-        # Function to get the latest Apple iOS/macOS updates from the Apple Developer RSS feed
+        # Step 2.5: Function to get the latest Apple iOS/macOS updates from the Apple Developer RSS feed
         Function Get-AppleUpdates() {
             try {
                 $uri = 'https://developer.apple.com/news/releases/rss/releases.rss'
@@ -104,32 +106,32 @@ steps:
             }
         }
 
-        # Get current date and set update description
+        # Step 2.6: Get current date and set update description
         $Date = Get-Date -Format 'dd-MM-yyyy hh:mm:ss'
         $Description = "Updated Operating System Device Compliance Policy on $Date"
 
-        # Retrieve the specific device compliance policy by ID
+        # Step 2.7: Retrieve the specific device compliance policy by ID
         $OSCompliancePolicies = Get-DeviceCompliancePolicy | Where-Object { ($_.id) -eq "dcf4a2bc-4df7-473e-9c23-acb9e7f8c991" }
 
-        # Extract the major version from the current minimum OS version
+        # Step 2.8: Extract the major version from the current minimum OS version
         $Version = $OSCompliancePolicies.osMinimumVersion.SubString(0, 2)
 
-        # Get the latest Apple iOS update for the detected version
+        # Step 2.9: Get the latest Apple iOS update for the detected version
         $AppleUpdate = Get-AppleUpdates -OS iOS -Version $Version
         if ($null -eq $AppleUpdate -or $AppleUpdate -eq "") {
             Write-Host "Apple update result is null or empty for iOS. Skipping policy update." -ForegroundColor Yellow
         } else {
-            # Extract the build version number from the update string
+            # Step 2.10: Extract the build version number from the update string
             $Build = ($AppleUpdate | Select-String '\b\d+\.\d+\.\d+\b' -AllMatches).Matches.Value
-            # Compare current policy version to latest build
+            # Step 2.11: Compare current policy version to latest build
             if ($OSCompliancePolicies.osMinimumVersion -ne $Build) {
-                # Prepare update object for PATCH request
+                # Step 2.12: Prepare update object for PATCH request
                 $Update = New-Object -TypeName psobject
                 $Update | Add-Member -MemberType NoteProperty -Name '@odata.type' -Value $OSCompliancePolicies.'@odata.type'
                 $Update | Add-Member -MemberType NoteProperty -Name 'description' -Value $Description
                 $Update | Add-Member -MemberType NoteProperty -Name 'osMinimumVersion' -Value $Build
 
-                # Convert update object to JSON and send PATCH request
+                # Step 2.13: Convert update object to JSON and send PATCH request
                 $JSON = $Update | ConvertTo-Json -Depth 3
                 Update-DeviceCompliancePolicy -Id $OSCompliancePolicies.id -JSON $JSON
                 Write-Host "Updated iOS Compliance Policy $($OSCompliancePolicies.displayName) with latest Build: $Build" -ForegroundColor Green
@@ -139,4 +141,4 @@ steps:
                 Write-Host
             }
         }
-           
+
