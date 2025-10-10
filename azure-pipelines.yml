@@ -11,7 +11,7 @@ steps:
   - task: PowerShell@2
     displayName: 'Run iOS Update Compliance Script'
     env:
-      UAT_SECRECT: $(UAT_SECRECT)
+      UAT_SECRECT: $(UAT_VAR)
     inputs:
       targetType: 'inline'
       pwsh: true
