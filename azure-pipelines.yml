@@ -1,0 +1,145 @@
+steps:
+  - task: PowerShell@2
+    displayName: 'Install Microsoft.Graph Module'
+    inputs:
+      targetType: 'inline'
+      script: |
+        Install-Module -Name Microsoft.Graph -Force -Scope CurrentUser
+        Import-Module Microsoft.Graph
+      pwsh: true
+
+  - task: PowerShell@2
+    displayName: 'Run iOS Update Compliance Script'
+    inputs:
+      targetType: 'inline'
+      pwsh: true
+      script: |
+        # Authenticate to Microsoft Graph using client credentials
+        $appid = '57a8be66-754a-4db8-acd4-540184473fff'
+        $tenantid = '592481bd-7799-451f-a6e0-7caf197e2eb4'
+        # Use the UAT_Secrect GitHub Actions secret for the client secret
+        $secret = $env:UAT_Secrect
+
+        $body =  @{
+            Grant_Type    = "client_credentials"
+            Scope         = "https://graph.microsoft.com/.default"
+            Client_Id     = $appid
+            Client_Secret = $secret
+        }
+        $connection = Invoke-RestMethod `
+            -Uri https://login.microsoftonline.com/$tenantid/oauth2/v2.0/token `
+            -Method POST `
+            -Body $body
+        $token = $connection.access_token
+        $accesstokenfinal = ConvertTo-SecureString -String $token -AsPlainText -Force
+        Connect-MgGraph -AccessToken $accesstokenfinal -NoWelcome
+
+        # Function to test if a JSON string is valid
+        Function Test-JSON() {
+            param (
+                $JSON
+            )
+            try {
+                $TestJSON = ConvertFrom-Json $JSON -ErrorAction Stop
+                $validJson = $true
+            }
+            catch {
+                $validJson = $false
+                $_.Exception
+            }
+            if (!$validJson) {
+                Write-Host "Provided JSON isn't in valid JSON format" -f Red
+                break
+            }
+        }
+
+        # Function to retrieve device compliance policies from Microsoft Graph API
+        Function Get-DeviceCompliancePolicy() {
+            [cmdletbinding()]
+            $graphApiVersion = 'Beta'
+            $Resource = 'deviceManagement/deviceCompliancePolicies'
+            try {
+                $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
+                (Invoke-MgGraphRequest -Uri $uri -Method Get).Value
+            }
+            catch {
+                Write-Error $Error[0].ErrorDetails.Message
+                break
+            }
+        }
+
+        # Function to update a device compliance policy using Microsoft Graph API
+        Function Update-DeviceCompliancePolicy() {
+            $graphApiVersion = 'Beta'
+            $Resource = "deviceManagement/deviceCompliancePolicies/dcf4a2bc-4df7-473e-9c23-acb9e7f8c991"
+            try {
+                Test-Json -Json $JSON
+                $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
+                Invoke-MgGraphRequest -Uri $uri -Method Patch -Body $JSON -ContentType 'application/json'
+            }
+            catch {
+                Write-Error $Error[0].ErrorDetails.Message
+                break
+            }
+        }
+
+        # Function to get the latest Apple iOS/macOS updates from the Apple Developer RSS feed
+        Function Get-AppleUpdates() {
+            try {
+                $uri = 'https://developer.apple.com/news/releases/rss/releases.rss'
+                [xml]$Updates = (Invoke-WebRequest -Uri $uri -UseBasicParsing -ContentType 'application/xml').Content -replace '[^\x09\x0A\x0D\x20-\xD7FF\xE000-\xFFFD\x10000-x10FFFF]', ''
+                $BuildVersion = @()
+                foreach ($Update in $Updates.rss.channel.Item) {
+                    if (($Update.title -like "*iOS*") -and ($Update.title -like "*26*") -and ($Update.title -notlike "*Beta*")) {
+                        $BuildVersion += $Update.title
+                    }
+                }
+                return $BuildVersion[0]
+            }
+            catch {
+                Write-Error $Error[0].ErrorDetails.Message
+                break
+            }
+        }
+
+        # Get current date and set update description
+        $Date = Get-Date -Format 'dd-MM-yyyy hh:mm:ss'
+        $Description = "Updated Operating System Device Compliance Policy on $Date"
+
+        # Retrieve the specific device compliance policy by ID
+        $OSCompliancePolicies = Get-DeviceCompliancePolicy | Where-Object { ($_.id) -eq "dcf4a2bc-4df7-473e-9c23-acb9e7f8c991" }
+
+        # Extract the major version from the current minimum OS version
+        $Version = $OSCompliancePolicies.osMinimumVersion.SubString(0, 2)
+
+        # Get the latest Apple iOS update for the detected version
+        $AppleUpdate = Get-AppleUpdates -OS iOS -Version $Version
+        if ($null -eq $AppleUpdate -or $AppleUpdate -eq "") {
+            Write-Host "Apple update result is null or empty for iOS. Skipping policy update." -ForegroundColor Yellow
+        } else {
+            # Extract the build version number from the update string
+            $Build = ($AppleUpdate | Select-String '\b\d+\.\d+\.\d+\b' -AllMatches).Matches.Value
+            # Compare current policy version to latest build
+            if ($OSCompliancePolicies.osMinimumVersion -ne $Build) {
+                # Prepare update object for PATCH request
+                $Update = New-Object -TypeName psobject
+                $Update | Add-Member -MemberType NoteProperty -Name '@odata.type' -Value $OSCompliancePolicies.'@odata.type'
+                $Update | Add-Member -MemberType NoteProperty -Name 'description' -Value $Description
+                $Update | Add-Member -MemberType NoteProperty -Name 'osMinimumVersion' -Value $Build
+
+                # Convert update object to JSON and send PATCH request
+                $JSON = $Update | ConvertTo-Json -Depth 3
+                Update-DeviceCompliancePolicy -Id $OSCompliancePolicies.id -JSON $JSON
+                Write-Host "Updated iOS Compliance Policy $($OSCompliancePolicies.displayName) with latest Build: $Build" -ForegroundColor Green
+                Write-Host
+            } else {
+                Write-Host "iOS Compliance Policy $($OSCompliancePolicy.displayName) already on latest Build: $Build" -ForegroundColor Cyan
+                Write-Host
+            }
+        }
+              Write-Host
+          } else {
+              Write-Host "iOS Compliance Policy $($OSCompliancePolicy.displayName) already on latest Build: $Build" -ForegroundColor Cyan
+              Write-Host
+          }
+      }
