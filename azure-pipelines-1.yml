@@ -30,12 +30,12 @@ steps:
         Write-Host "Found backup file: $($backupFile.FullName)"
         $fileSize = (Get-Item $backupFile.FullName).Length
         Write-Host "File size: $fileSize bytes"
-        $json = Get-Content $backupFile.FullName -Raw
-        if (-not $json) {
+        $JSON = Get-Content $backupFile.FullName -Raw
+        if (-not $JSON) {
             Write-Error "Backup file $($backupFile.FullName) is empty."
             exit 1
         }
-        $preview = if ($json.Length -gt 200) { $json.Substring(0,200) + '...' } else { $json }
+        $preview = if ($JSON.Length -gt 200) { $JSON.Substring(0,200) + '...' } else { $JSON }
         Write-Host "First 200 chars of file: $preview"
 
         # Authenticate to Microsoft Graph
@@ -95,4 +95,4 @@ steps:
 
         # Restore the policy
         Write-Host "Restoring from latest backup: $($backupFile.Name)"
-        Update-DeviceCompliancePolicy -JSON $json
+        Update-DeviceCompliancePolicy -JSON $JSON
