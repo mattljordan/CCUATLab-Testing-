@@ -135,13 +135,13 @@ steps:
                 Write-Host "Updated iOS Compliance Policy $($OSCompliancePolicies.displayName) with latest Build: $Build" -ForegroundColor Green
                 Write-Host
             } else {
-                Write-Host "iOS Compliance Policy $($OSCompliancePolicy.displayName) already on latest Build: $Build" -ForegroundColor Cyan
+                Write-Host "iOS Compliance Policy $($OSCompliancePolicies.displayName) already on latest Build: $Build" -ForegroundColor Cyan
                 Write-Host
             }
                    
                   $date = Get-Date -Format 'yyyyMMdd-HHmmss'
         $filename = "policy-$date.json"
-        $policy | ConvertTo-Json -Depth 5 | Set-Content -Path $filename
+        $OSCompliancePolicies | ConvertTo-Json -Depth 5 | Set-Content -Path $filename
 
         # Step: Commit and push $filename to GitHub
         git config --global user.email "mattljordan@users.noreply.github.com"
