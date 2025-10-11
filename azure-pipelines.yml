@@ -120,7 +120,7 @@ steps:
             Write-Host "Apple update result is null or empty for iOS. Skipping policy update." -ForegroundColor Yellow
         } else {
         # Step 11: Extract the build version number from the update string
-            $Build = ($AppleUpdate | Select-String '\b\d+\.\d+\.\d+\b' -AllMatches).Matches.Value
+            $Build = ($AppleUpdate | Select-String '\b\d+\.\d+\.\d+\b' -AllMatches).Matches.Value}
         # Step 12: Compare current policy version to latest build
             if ($OSCompliancePolicies.osMinimumVersion -ne $Build) {
                 # Step 13: Prepare update object for PATCH request
