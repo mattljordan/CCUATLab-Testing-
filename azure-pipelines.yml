@@ -140,7 +140,7 @@ steps:
             }
                    
                   $date = Get-Date -Format 'yyyyMMdd-HHmmss'
-        $filename = "policy-$date.json"
+        $filename = "OSCompliancePolicy-$date.json"
         $OSCompliancePolicies | ConvertTo-Json -Depth 5 | Set-Content -Path $filename
 
         # Step: Commit and push $filename to GitHub
