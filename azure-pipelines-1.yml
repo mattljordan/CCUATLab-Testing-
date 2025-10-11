@@ -26,7 +26,7 @@ steps:
 
       # Get list of files in the repo root
       $files = Invoke-RestMethod -Uri $apiUrl -Headers $headers
-      $jsonFiles = $files | Where-Object { $_.name -like "policy-*.json" }
+      $jsonFiles = $files | Where-Object { $_.name -like "OSCompliancePolicy-*.json" }
 
       if (-not $jsonFiles) {
         Write-Error "No policy-*.json files found in the repo."
