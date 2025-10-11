@@ -152,9 +152,13 @@ steps:
         git push origin HEAD:$(Build.SourceBranchName)
 
         # Step: Update all iOS App Protection Policies' Conditional Launch to the same iOS version
-        $appProtectionPolicies = Invoke-RestMethod -Uri "https://graph.microsoft.com/beta/deviceAppManagement/iosManagedAppProtection" -Headers $headers -Method Get
+        # Get all managed app policies
+        $allPolicies = Invoke-RestMethod -Uri "https://graph.microsoft.com/beta/deviceAppManagement/managedAppPolicies" -Headers $headers -Method Get
 
-        foreach ($policy in $appProtectionPolicies.value) {
+        # Filter for iOS managed app protection policies
+        $iosPolicies = $allPolicies.value | Where-Object { $_.'@odata.type' -eq '#microsoft.graph.iosManagedAppProtection' }
+
+        foreach ($policy in $iosPolicies) {
             $update = @{
                 conditionalLaunch = @(
                     @{
@@ -165,7 +169,7 @@ steps:
                 )
             }
             $policyId = $policy.id
-            $uri = "https://graph.microsoft.com/beta/deviceAppManagement/iosManagedAppProtection/$policyId"
+            $uri = "https://graph.microsoft.com/beta/deviceAppManagement/managedAppPolicies/$policyId"
             $jsonUpdate = $update | ConvertTo-Json -Depth 5
             Invoke-RestMethod -Uri $uri -Headers $headers -Method Patch -Body $jsonUpdate -ContentType 'application/json'
             Write-Host "Updated App Protection Policy $($policy.displayName) to require iOS $Build"
