@@ -166,33 +166,15 @@ steps:
             $samplePolicy | ConvertTo-Json -Depth 10 | Write-Host
         }
 
-        foreach ($policy in $iosPolicies) {
-            $policyId = $policy.id
-            $uri = "https://graph.microsoft.com/beta/deviceAppManagement/managedAppPolicies/$policyId"
-            # Get the full policy to retrieve the current conditionalLaunch array
-            $fullPolicy = Invoke-RestMethod -Uri $uri -Headers $headers -Method Get
-            $conditionalLaunch = $fullPolicy.conditionalLaunch
-            if (-not $conditionalLaunch) { $conditionalLaunch = @() }
-
-            # Find the minOSVersion object
-            $found = $false
-            for ($i = 0; $i -lt $conditionalLaunch.Count; $i++) {
-                if ($conditionalLaunch[$i].settingName -eq "minimumWarningOsVersion") {
-                    $conditionalLaunch[$i].value = $Build
-                    $conditionalLaunch[$i].action = "block"
-                    $found = $true
-                }
-            }
-            if (-not $found) {
-                $conditionalLaunch += @{ settingName = "minimumWarningOsVersion"; value = $Build; action = "block" }
-            }
-
-            $update = @{ conditionalLaunch = $conditionalLaunch }
-            $jsonUpdate = $update | ConvertTo-Json -Depth 5
-            try {
-                Invoke-RestMethod -Uri $uri -Headers $headers -Method Patch -Body $jsonUpdate -ContentType 'application/json'
-                Write-Host "Updated App Protection Policy $($policy.displayName) to require iOS $Build" -ForegroundColor Green
-            } catch {
+            foreach ($policy in $iosPolicies) {
+        $policyId = $policy.id
+        $uri = "https://graph.microsoft.com/beta/deviceAppManagement/managedAppPolicies/$policyId"
+        $update = @{ minimumWarningOsVersion = $Build }
+        $jsonUpdate = $update | ConvertTo-Json -Depth 3
+        try {
+            Invoke-RestMethod -Uri $uri -Headers $headers -Method Patch -Body $jsonUpdate -ContentType 'application/json'
+            Write-Host "Updated App Protection Policy $($policy.displayName) to require minimumWarningOsVersion $Build" -ForegroundColor Green
+        } catch {
                 Write-Host "Failed to update $($policy.displayName): $($_.Exception.Message)" -ForegroundColor Red
             }
         }
