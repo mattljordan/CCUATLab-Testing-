@@ -171,7 +171,7 @@ steps:
             # PATCH only the minOSVersion property inside conditionalAccessSettings (if present)
             $update = @{
                 conditionalAccessSettings = @{
-                    minOSVersion = $Build
+                    minimumWarningOsVersion = $Build
                 }
             }
             $uri = "https://graph.microsoft.com/beta/deviceAppManagement/managedAppPolicies/$policyId"
