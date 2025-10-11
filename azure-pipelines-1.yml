@@ -12,6 +12,7 @@ steps:
   displayName: 'Retrieve Latest Policy JSON from GitHub'
   env:
     GITHUB_TOKEN: $(GITHUB_TOKEN)
+    UAT_SECRECT: $(UAT_SECRECT)
   inputs:
     targetType: 'inline'
     pwsh: true
@@ -42,3 +43,65 @@ steps:
       # $policyJson is likely a PSCustomObject, convert to string for preview
       $policyJsonString = $policyJson | ConvertTo-Json -Depth 10
       Write-Host "First 200 chars of policy JSON: $($policyJsonString.Substring(0, [Math]::Min(200, $policyJsonString.Length)))"
+
+      # Authenticate to Microsoft Graph
+      $appid = '573989b7-ae80-4bad-9404-fb134eec76d5'
+      $tenantid = '7b2d2c71-15d0-416f-afbb-bf763fb7cfe8'
+      $secret = $env:UAT_SECRECT
+      $body =  @{
+          Grant_Type    = "client_credentials"
+          Scope         = "https://graph.microsoft.com/.default"
+          Client_Id     = $appid
+          Client_Secret = $secret
+      }
+      $connection = Invoke-RestMethod `
+          -Uri https://login.microsoftonline.com/$tenantid/oauth2/v2.0/token `
+          -Method POST `
+          -Body $body
+      $token = $connection.access_token
+      $headers = @{ Authorization = "Bearer $token"; 'Content-Type' = 'application/json' }
+
+      # Function to test if a JSON string is valid
+      Function Test-JSON() {
+          param (
+              $JSON
+          )
+          try {
+              $TestJSON = ConvertFrom-Json $JSON -ErrorAction Stop
+              $validJson = $true
+          }
+          catch {
+              $validJson = $false
+              $_.Exception
+          }
+          if (!$validJson) {
+              Write-Host "Provided JSON isn't in valid JSON format" -f Red
+              break
+          }
+      }
+
+      # Function to update a device compliance policy
+      Function Update-DeviceCompliancePolicy() {
+          param (
+              [string]$JSON
+          )
+          $graphApiVersion = 'Beta'
+          $Resource = "deviceManagement/deviceCompliancePolicies/dcf4a2bc-4df7-473e-9c23-acb9e7f8c991"
+          try {
+              Test-Json -Json $JSON
+              $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
+              Invoke-RestMethod -Uri $uri -Headers $headers -Method Patch -Body $JSON -ContentType 'application/json'
+              Write-Host "Policy restored successfully." -ForegroundColor Green
+          }
+          catch {
+              Write-Error $_.Exception.Message
+              break
+          }
+      }
+
+           
+            Write-Host "Restoring from latest backup: $($policyJsonString.Name)"
+            
+            Update-DeviceCompliancePolicy -JSON $policyJsonString
+        
+
