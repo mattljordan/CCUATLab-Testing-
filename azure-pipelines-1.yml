@@ -103,6 +103,7 @@ steps:
         Write-Host "Found backup file: $($backupFile.FullName)"
         $JSON = Get-Content $backupFile.FullName -Raw
         Write-Host "Found backup file: $($JSON)"
+        Write-Host "Found backup file: $($backupFile)"
         Write-Host "Restoring from latest backup: $($backupFile.Name)"
         Update-DeviceCompliancePolicy -JSON $json
 
