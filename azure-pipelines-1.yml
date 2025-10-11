@@ -1,20 +1,47 @@
+trigger: none
+
+pool:
+  vmImage: ubuntu-latest
 
 steps:
-  # Step: Restore a backup JSON to policy using Update-DeviceCompliancePolicy
   - task: PowerShell@2
-    displayName: 'Restore Compliance Policy from Backup'
+    displayName: 'Restore Compliance Policy from Latest GitHub Backup'
     env:
       UAT_SECRECT: $(UAT_SECRECT)
+      GITHUB_TOKEN: $(GITHUB_TOKEN)
     inputs:
       targetType: 'inline'
       pwsh: true
       script: |
-        # Step 2: Authenticate to Microsoft Graph using client credentials
+        # Set up GitHub authentication (requires GITHUB_TOKEN secret in pipeline)
+        git config --global user.email "mattljordan@users.noreply.github.com"
+        git config --global user.name "mattljordan"
+
+        # Clone the repo (shallow for speed)
+        git clone --depth 1 https://mattljordan:${env:GITHUB_TOKEN}@github.com/mattljordan/CCUATLab-Testing-.git repo
+        cd repo
+
+        # Find the latest policy-*.json file
+        $backupFile = Get-ChildItem -Path . -Filter 'policy-*.json' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        if ($null -eq $backupFile) {
+            Write-Error "No policy backup files found in $(Get-Location)."
+            exit 1
+        }
+        Write-Host "Found backup file: $($backupFile.FullName)"
+        $fileSize = (Get-Item $backupFile.FullName).Length
+        Write-Host "File size: $fileSize bytes"
+        $json = Get-Content $backupFile.FullName -Raw
+        if (-not $json) {
+            Write-Error "Backup file $($backupFile.FullName) is empty."
+            exit 1
+        }
+        $preview = if ($json.Length -gt 200) { $json.Substring(0,200) + '...' } else { $json }
+        Write-Host "First 200 chars of file: $preview"
+
+        # Authenticate to Microsoft Graph
         $appid = '573989b7-ae80-4bad-9404-fb134eec76d5'
         $tenantid = '7b2d2c71-15d0-416f-afbb-bf763fb7cfe8'
-        # Use the UAT_SECRECT GitHub Actions secret for the client secret
-        $secret = $($env:UAT_SECRECT)
-
+        $secret = $env:UAT_SECRECT
         $body =  @{
             Grant_Type    = "client_credentials"
             Scope         = "https://graph.microsoft.com/.default"
@@ -26,43 +53,26 @@ steps:
             -Method POST `
             -Body $body
         $token = $connection.access_token
-        # Prepare authorization header for web requests
         $headers = @{ Authorization = "Bearer $token"; 'Content-Type' = 'application/json' }
-        # Step 3: Function to test if a JSON string is valid
-            Function Test-JSON() {
-                param (
-                    $JSON
-                )
-                try {
-                    $TestJSON = ConvertFrom-Json $JSON -ErrorAction Stop
-                    $validJson = $true
-                }
-                catch {
-                    $validJson = $false
-                    $_.Exception
-                }
-                if (!$validJson) {
-                    Write-Host "Provided JSON isn't in valid JSON format" -f Red
-                    break
-                }
-            }
 
-              # Step 2.3: Function to retrieve device compliance policies from Microsoft Graph API
-         Function Get-DeviceCompliancePolicy() {
-            [cmdletbinding()]
-            $graphApiVersion = 'Beta'
-            $Resource = 'deviceManagement/deviceCompliancePolicies'
+        # Function to test if a JSON string is valid
+        Function Test-JSON() {
+            param (
+                $JSON
+            )
             try {
-                $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
-                (Invoke-RestMethod -Uri $uri -Headers $headers -Method Get).value
+                $TestJSON = ConvertFrom-Json $JSON -ErrorAction Stop
+                $validJson = $true
             }
             catch {
-                Write-Error $_.Exception.Message
-                break
+                $validJson = $false
+                $_.Exception
+            }
+            if (!$validJson) {
+                Write-Host "Provided JSON isn't in valid JSON format" -f Red
+                return
             }
         }
-             # Step 2.7: Retrieve the specific device compliance policy by ID
-        $OSCompliancePolicies = Get-DeviceCompliancePolicy | Where-Object { ($_.id) -eq "dcf4a2bc-4df7-473e-9c23-acb9e7f8c991" }
 
         # Function to update a device compliance policy
         Function Update-DeviceCompliancePolicy() {
@@ -78,43 +88,11 @@ steps:
                 Write-Host "Policy restored successfully." -ForegroundColor Green
             }
             catch {
-                 Write-Error $_.Exception.Message
+                Write-Error $_.Exception.Message
                 return
             }
         }
 
-     
-
-        # Clone the GitHub repo and get the latest policy-*.json backup file
-        git config --global user.email "mattljordan@users.noreply.github.com"
-        git config --global user.name "mattljordan"
-        git clone --depth 1 https://mattljordan:${env:GITHUB_TOKEN}@github.com/mattljordan/CCUATLab-Testing-.git repo
-        cd repo
-
-        Write-Host "Current directory: $(Get-Location)"
-        Write-Host "Listing all policy-*.json files:"
-        Get-ChildItem -Path . -Filter 'policy-*.json' | ForEach-Object { Write-Host $_.FullName }
-
-        $backupFile = Get-ChildItem -Path . -Filter 'policy-*.json' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-        if ($null -eq $backupFile) {
-            Write-Error "No policy backup files found in $(Get-Location)."
-            exit 1
-        }
-        Write-Host "Found backup file: $($backupFile.FullName)"
-        if (Test-Path $backupFile.FullName) {
-            $fileSize = (Get-Item $backupFile.FullName).Length
-            Write-Host "File exists. Size: $fileSize bytes"
-        } else {
-            Write-Error "File does not exist at $($backupFile.FullName)"
-            exit 1
-        }
-        $json = Get-Content $backupFile.FullName -Raw
-        if (-not $json) {
-            Write-Error "Backup file $($backupFile.FullName) is empty."
-            exit 1
-        }
-        $preview = if ($json.Length -gt 200) { $json.Substring(0,200) + '...' } else { $json }
-        Write-Host "First 200 chars of file: $preview"
+        # Restore the policy
         Write-Host "Restoring from latest backup: $($backupFile.Name)"
         Update-DeviceCompliancePolicy -JSON $json
-
