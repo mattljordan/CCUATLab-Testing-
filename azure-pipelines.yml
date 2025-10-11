@@ -168,13 +168,26 @@ steps:
 
         foreach ($policy in $iosPolicies) {
             $policyId = $policy.id
-            # PATCH only the minOSVersion property inside conditionalAccessSettings (if present)
-            $update = @{
-                conditionalAccessSettings = @{
-                    minimumWarningOsVersion = $Build
+            $uri = "https://graph.microsoft.com/beta/deviceAppManagement/managedAppPolicies/$policyId"
+            # Get the full policy to retrieve the current conditionalLaunch array
+            $fullPolicy = Invoke-RestMethod -Uri $uri -Headers $headers -Method Get
+            $conditionalLaunch = $fullPolicy.conditionalLaunch
+            if (-not $conditionalLaunch) { $conditionalLaunch = @() }
+
+            # Find the minOSVersion object
+            $found = $false
+            for ($i = 0; $i -lt $conditionalLaunch.Count; $i++) {
+                if ($conditionalLaunch[$i].settingName -eq "minOSVersion") {
+                    $conditionalLaunch[$i].value = $Build
+                    $conditionalLaunch[$i].action = "block"
+                    $found = $true
                 }
             }
-            $uri = "https://graph.microsoft.com/beta/deviceAppManagement/managedAppPolicies/$policyId"
+            if (-not $found) {
+                $conditionalLaunch += @{ settingName = "minOSVersion"; value = $Build; action = "block" }
+            }
+
+            $update = @{ conditionalLaunch = $conditionalLaunch }
             $jsonUpdate = $update | ConvertTo-Json -Depth 5
             try {
                 Invoke-RestMethod -Uri $uri -Headers $headers -Method Patch -Body $jsonUpdate -ContentType 'application/json'
