@@ -31,7 +31,10 @@ steps:
         $fileSize = (Get-Item $backupFile.FullName).Length
         Write-Host "File size: $fileSize bytes"
         Write-Host "Backup file exists: $(Test-Path $backupFile.FullName)"
-        $json = Get-Content $backupFile.FullName -Raw
+        # Try reading with UTF8 encoding
+        $json = Get-Content $backupFile.FullName -Raw -Encoding UTF8
+        $bytes = [System.IO.File]::ReadAllBytes($backupFile.FullName)
+        Write-Host "First 20 bytes: $($bytes[0..([Math]::Min(19, $bytes.Length-1))] -join ', ')"
         if ($json -eq $null) {
             Write-Host "Get-Content returned null"
         } elseif ($json -eq '') {
