@@ -3,101 +3,41 @@ trigger: none
 pool:
   vmImage: ubuntu-latest
 
+
+
+
 steps:
-  - task: PowerShell@2
-    displayName: 'Restore Compliance Policy from Latest GitHub Backup'
-    env:
-      UAT_SECRECT: $(UAT_SECRECT)
-      GITHUB_TOKEN: $(GITHUB_TOKEN)
-    inputs:
-      targetType: 'inline'
-      pwsh: true
-      script: |
-                # Download latest policy-*.json from GitHub API (no clone)
-                $repo = "mattljordan/CCUATLab-Testing-"
-                $apiUrl = "https://api.github.com/repos/$repo/contents"
-                $headersGH = @{
-                    Authorization = "token $env:GITHUB_TOKEN"
-                    "User-Agent" = "AzureDevOpsPipeline"
-                }
+  # Step 1: Retreive Last backup compliance json from GitHub
+- task: PowerShell@2
+  displayName: 'Retrieve Latest Policy JSON from GitHub'
+  env:
+    GITHUB_TOKEN: $(GITHUB_TOKEN)
+  inputs:
+    targetType: 'inline'
+    pwsh: true
+    script: |
+      $repo = "mattljordan/CCUATLab-Testing-"
+      $apiUrl = "https://api.github.com/repos/$repo/contents"
+      $headers = @{
+        Authorization = "token $env:GITHUB_TOKEN"
+        "User-Agent" = "AzureDevOpsPipeline"
+      }
 
-                # Get list of files in the repo root
-                $files = Invoke-RestMethod -Uri $apiUrl -Headers $headersGH
-                $jsonFiles = $files | Where-Object { $_.name -like "policy-*.json" }
+      # Get list of files in the repo root
+      $files = Invoke-RestMethod -Uri $apiUrl -Headers $headers
+      $jsonFiles = $files | Where-Object { $_.name -like "policy-*.json" }
 
-                if (-not $jsonFiles) {
-                    Write-Error "No policy-*.json files found in the repo."
-                    exit 1
-                }
+      if (-not $jsonFiles) {
+        Write-Error "No policy-*.json files found in the repo."
+        exit 1
+      }
 
-                # Get the latest file by name (assuming timestamped)
-                $latestFile = $jsonFiles | Sort-Object name -Descending | Select-Object -First 1
-                Write-Host "Latest backup file: $($latestFile.name)"
+      # Get the latest file by name (assuming timestamped)
+      $latestFile = $jsonFiles | Sort-Object name -Descending | Select-Object -First 1
+      Write-Host "Latest backup file: $($latestFile.name)"
 
-                # Download the file content (raw URL)
-                $json = Invoke-RestMethod -Uri $latestFile.download_url -Headers $headersGH
-                if ($json -eq $null -or $json -eq '') {
-                    Write-Error "Downloaded backup file is empty."
-                    exit 1
-                }
-                $preview = if ($json.Length -gt 200) { $json.Substring(0,200) + '...' } else { $json }
-                Write-Host "First 200 chars of file: $preview"
+      # Download the file content (raw URL)
+      $policyJson = Invoke-RestMethod -Uri $latestFile.download_url -Headers $headers
 
-                # Authenticate to Microsoft Graph
-                $appid = '573989b7-ae80-4bad-9404-fb134eec76d5'
-                $tenantid = '7b2d2c71-15d0-416f-afbb-bf763fb7cfe8'
-                $secret = $env:UAT_SECRECT
-                $body =  @{
-                    Grant_Type    = "client_credentials"
-                    Scope         = "https://graph.microsoft.com/.default"
-                    Client_Id     = $appid
-                    Client_Secret = $secret
-                }
-                $connection = Invoke-RestMethod `
-                    -Uri https://login.microsoftonline.com/$tenantid/oauth2/v2.0/token `
-                    -Method POST `
-                    -Body $body
-                $token = $connection.access_token
-                $headers = @{ Authorization = "Bearer $token"; 'Content-Type' = 'application/json' }
-
-                # Function to test if a JSON string is valid
-                Function Test-JSON() {
-                    param (
-                        $JSON
-                    )
-                    try {
-                        $TestJSON = ConvertFrom-Json $JSON -ErrorAction Stop
-                        $validJson = $true
-                    }
-                    catch {
-                        $validJson = $false
-                        $_.Exception
-                    }
-                    if (!$validJson) {
-                        Write-Host "Provided JSON isn't in valid JSON format" -f Red
-                        return
-                    }
-                }
-
-                # Function to update a device compliance policy
-                Function Update-DeviceCompliancePolicy() {
-                    param (
-                        [string]$JSON
-                    )
-                    $graphApiVersion = 'Beta'
-                    $Resource = "deviceManagement/deviceCompliancePolicies/dcf4a2bc-4df7-473e-9c23-acb9e7f8c991"
-                    try {
-                        Test-Json -Json $JSON
-                        $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
-                        Invoke-RestMethod -Uri $uri -Headers $headers -Method Patch -Body $JSON -ContentType 'application/json'
-                        Write-Host "Policy restored successfully." -ForegroundColor Green
-                    }
-                    catch {
-                        Write-Error $_.Exception.Message
-                        return
-                    }
-                }
-
-                # Restore the policy
-                Write-Host "Restoring from latest backup: $($backupFile.Name)"
-                Update-DeviceCompliancePolicy -JSON $json
+      # $policyJson now contains the JSON content as a string
+      Write-Host "First 200 chars of policy JSON: $($policyJson.Substring(0, [Math]::Min(200, $policyJson.Length)))"
