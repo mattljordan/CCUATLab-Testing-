@@ -150,5 +150,24 @@ steps:
         git commit -m "Automated backup of $filename [skip ci]" || echo "No changes to commit"
         git remote set-url origin https://mattljordan:${env:GITHUB_TOKEN}@github.com/$(Build.Repository.Name).git
         git push origin HEAD:$(Build.SourceBranchName)
+
+        # Step: Update all iOS App Protection Policies' Conditional Launch to the same iOS version
+        $appProtectionPolicies = Invoke-RestMethod -Uri "https://graph.microsoft.com/beta/deviceAppManagement/iosManagedAppProtection" -Headers $headers -Method Get
+
+        foreach ($policy in $appProtectionPolicies.value) {
+            $update = @{
+                conditionalLaunch = @(
+                    @{
+                        settingName = "minOSVersion"
+                        value = $Build
+                        action = "block"
+                    }
+                )
+            }
+            $policyId = $policy.id
+            $uri = "https://graph.microsoft.com/beta/deviceAppManagement/iosManagedAppProtection/$policyId"
+            $jsonUpdate = $update | ConvertTo-Json -Depth 5
+            Invoke-RestMethod -Uri $uri -Headers $headers -Method Patch -Body $jsonUpdate -ContentType 'application/json'
+            Write-Host "Updated App Protection Policy $($policy.displayName) to require iOS $Build"
         }
 
