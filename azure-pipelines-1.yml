@@ -101,11 +101,8 @@ steps:
             exit 1
         }
         Write-Host "Found backup file: $($backupFile.FullName)"
-        $json = Get-Content $backupFile.FullName -Raw
-        if (-not $json) {
-            Write-Error "Backup file $($backupFile.FullName) is empty."
-            exit 1
-        }
+        $JSON = Get-Content $backupFile.FullName -Raw
+       
         Write-Host "Restoring from latest backup: $($backupFile.Name)"
         Update-DeviceCompliancePolicy -JSON $json
 
