@@ -158,20 +158,29 @@ steps:
         # Filter for iOS managed app protection policies
         $iosPolicies = $allPolicies.value | Where-Object { $_.'@odata.type' -eq '#microsoft.graph.iosManagedAppProtection' }
 
+        # Debug: Output the structure of a sample policy
+        if ($iosPolicies.Count -gt 0) {
+            $sampleId = $iosPolicies[0].id
+            $samplePolicy = Invoke-RestMethod -Uri "https://graph.microsoft.com/beta/deviceAppManagement/managedAppPolicies/$sampleId" -Headers $headers -Method Get
+            Write-Host "Sample iOS Managed App Protection Policy structure:" -ForegroundColor Yellow
+            $samplePolicy | ConvertTo-Json -Depth 10 | Write-Host
+        }
+
         foreach ($policy in $iosPolicies) {
-            $update = @{
-                conditionalLaunch = @(
-                    @{
-                        settingName = "minOSVersion"
-                        value = $Build
-                        action = "block"
-                    }
-                )
-            }
             $policyId = $policy.id
+            # PATCH only the minOSVersion property inside conditionalAccessSettings (if present)
+            $update = @{
+                conditionalAccessSettings = @{
+                    minOSVersion = $Build
+                }
+            }
             $uri = "https://graph.microsoft.com/beta/deviceAppManagement/managedAppPolicies/$policyId"
             $jsonUpdate = $update | ConvertTo-Json -Depth 5
-            Invoke-RestMethod -Uri $uri -Headers $headers -Method Patch -Body $jsonUpdate -ContentType 'application/json'
-            Write-Host "Updated App Protection Policy $($policy.displayName) to require iOS $Build"
+            try {
+                Invoke-RestMethod -Uri $uri -Headers $headers -Method Patch -Body $jsonUpdate -ContentType 'application/json'
+                Write-Host "Updated App Protection Policy $($policy.displayName) to require iOS $Build" -ForegroundColor Green
+            } catch {
+                Write-Host "Failed to update $($policy.displayName): $($_.Exception.Message)" -ForegroundColor Red
+            }
         }
 
