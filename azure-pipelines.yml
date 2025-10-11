@@ -143,7 +143,7 @@ steps:
         $filename = "OSCompliancePolicy-$date.json"
         $OSCompliancePolicies | ConvertTo-Json -Depth 5 | Set-Content -Path $filename
 
-        # Step: Commit and push $filename to GitHub
+        # Step13: Commit and push $filename to GitHub
         git config --global user.email "mattljordan@users.noreply.github.com"
         git config --global user.name "mattljordan"
         git add $filename
@@ -171,7 +171,7 @@ steps:
             git push origin HEAD:$(Build.SourceBranchName)
 
 
-        # Step: Update all iOS App Protection Policies' Conditional Launch to the same iOS version
+        # Step 14: Update all iOS App Protection Policies' Conditional Launch to the same iOS version
         # Get all managed app policies
         $allPolicies = Invoke-RestMethod -Uri "https://graph.microsoft.com/beta/deviceAppManagement/managedAppPolicies" -Headers $headers -Method Get
 
@@ -205,4 +205,52 @@ steps:
             } catch {
                 Write-Host "Failed to update $($policy.displayName): $($_.Exception.Message)" -ForegroundColor Red
         }}
+  # Step 13: Commit and push compliance policy backup
+  - task: PowerShell@2
+    displayName: 'Step 13: Commit and push compliance policy backup'
+    env:
+      GITHUB_TOKEN: $(GITHUB_TOKEN)
+    inputs:
+      targetType: 'inline'
+      pwsh: true
+      script: |
+        $date = Get-Date -Format 'yyyyMMdd-HHmmss'
+        $filename = "OSCompliancePolicy-$date.json"
+        $OSCompliancePolicies | ConvertTo-Json -Depth 5 | Set-Content -Path $filename
+        git config --global user.email "mattljordan@users.noreply.github.com"
+        git config --global user.name "mattljordan"
+        git add $filename
+        git commit -m "Automated backup of $filename [skip ci]" || Write-Output "No changes to commit"
+        git remote set-url origin https://mattljordan:${env:GITHUB_TOKEN}@github.com/$(Build.Repository.Name).git
+        git push origin HEAD:$(Build.SourceBranchName)
+
+  # Step 14: Update all iOS App Protection Policies' Conditional Launch
+  - task: PowerShell@2
+    displayName: 'Step 14: Update iOS App Protection Policies'
+    env:
+      GITHUB_TOKEN: $(GITHUB_TOKEN)
+    inputs:
+      targetType: 'inline'
+      pwsh: true
+      script: |
+        $allPolicies = Invoke-RestMethod -Uri "https://graph.microsoft.com/beta/deviceAppManagement/managedAppPolicies" -Headers $headers -Method Get
+        $iosPolicies = $allPolicies.value | Where-Object { $_.'@odata.type' -eq '#microsoft.graph.iosManagedAppProtection' }
+        foreach ($policy in $iosPolicies) {
+          $policyId = $policy.id
+          $uri = "https://graph.microsoft.com/beta/deviceAppManagement/managedAppPolicies/$policyId"
+          $fullPolicy = Invoke-RestMethod -Uri $uri -Headers $headers -Method Get
+          $fullPolicy.minimumWarningOsVersion = $Build
+          $fullPolicy.PSObject.Properties.Remove('id')
+          $fullPolicy.PSObject.Properties.Remove('createdDateTime')
+          $fullPolicy.PSObject.Properties.Remove('lastModifiedDateTime')
+          $jsonUpdate = $fullPolicy | ConvertTo-Json -Depth 10
+          Write-Host "PATCH body (full object):" -ForegroundColor Yellow
+          Write-Host $jsonUpdate
+          try {
+            Invoke-RestMethod -Uri $uri -Headers $headers -Method Patch -Body $jsonUpdate -ContentType 'application/json'
+            Write-Host "Updated App Protection Policy $($policy.displayName) to require minimumWarningOsVersion $Build" -ForegroundColor Green
+          } catch {
+            Write-Host "Failed to update $($policy.displayName): $($_.Exception.Message)" -ForegroundColor Red
+          }
+        }
 
