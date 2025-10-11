@@ -91,12 +91,21 @@ steps:
         git clone --depth 1 https://mattljordan:${env:GITHUB_TOKEN}@github.com/mattljordan/CCUATLab-Testing-.git repo
         cd repo
 
+        Write-Host "Current directory: $(Get-Location)"
+        Write-Host "Listing all policy-*.json files:"
+        Get-ChildItem -Path . -Filter 'policy-*.json' | ForEach-Object { Write-Host $_.FullName }
+
         $backupFile = Get-ChildItem -Path . -Filter 'policy-*.json' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
         if ($null -eq $backupFile) {
-            Write-Error "No policy backup files found."
+            Write-Error "No policy backup files found in $(Get-Location)."
+            exit 1
+        }
+        Write-Host "Found backup file: $($backupFile.FullName)"
+        $json = Get-Content $backupFile.FullName -Raw
+        if (-not $json) {
+            Write-Error "Backup file $($backupFile.FullName) is empty."
             exit 1
         }
         Write-Host "Restoring from latest backup: $($backupFile.Name)"
-        $json = Get-Content $backupFile.FullName -Raw
         Update-DeviceCompliancePolicy -JSON $json
 
