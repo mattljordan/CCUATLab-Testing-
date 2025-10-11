@@ -177,14 +177,14 @@ steps:
             # Find the minOSVersion object
             $found = $false
             for ($i = 0; $i -lt $conditionalLaunch.Count; $i++) {
-                if ($conditionalLaunch[$i].settingName -eq "minOSVersion") {
+                if ($conditionalLaunch[$i].settingName -eq "minimumWarningOsVersion") {
                     $conditionalLaunch[$i].value = $Build
                     $conditionalLaunch[$i].action = "block"
                     $found = $true
                 }
             }
             if (-not $found) {
-                $conditionalLaunch += @{ settingName = "minOSVersion"; value = $Build; action = "block" }
+                $conditionalLaunch += @{ settingName = "minimumWarningOsVersion"; value = $Build; action = "block" }
             }
 
             $update = @{ conditionalLaunch = $conditionalLaunch }
