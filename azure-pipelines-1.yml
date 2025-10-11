@@ -39,5 +39,6 @@ steps:
       # Download the file content (raw URL)
       $policyJson = Invoke-RestMethod -Uri $latestFile.download_url -Headers $headers
 
-      # $policyJson now contains the JSON content as a string
-      Write-Host "First 200 chars of policy JSON: $($policyJson.Substring(0, [Math]::Min(200, $policyJson.Length)))"
+      # $policyJson is likely a PSCustomObject, convert to string for preview
+      $policyJsonString = $policyJson | ConvertTo-Json -Depth 10
+      Write-Host "First 200 chars of policy JSON: $($policyJsonString.Substring(0, [Math]::Min(200, $policyJsonString.Length)))"
