@@ -101,9 +101,20 @@ steps:
             exit 1
         }
         Write-Host "Found backup file: $($backupFile.FullName)"
-        $JSON = Get-Content $backupFile.FullName -Raw
-        Write-Host "Found backup file: $($JSON)"
-        Write-Host "Found backup file: $($backupFile)"
+        if (Test-Path $backupFile.FullName) {
+            $fileSize = (Get-Item $backupFile.FullName).Length
+            Write-Host "File exists. Size: $fileSize bytes"
+        } else {
+            Write-Error "File does not exist at $($backupFile.FullName)"
+            exit 1
+        }
+        $json = Get-Content $backupFile.FullName -Raw
+        if (-not $json) {
+            Write-Error "Backup file $($backupFile.FullName) is empty."
+            exit 1
+        }
+        $preview = if ($json.Length -gt 200) { $json.Substring(0,200) + '...' } else { $json }
+        Write-Host "First 200 chars of file: $preview"
         Write-Host "Restoring from latest backup: $($backupFile.Name)"
         Update-DeviceCompliancePolicy -JSON $json
 
