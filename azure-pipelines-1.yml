@@ -101,7 +101,7 @@ steps:
                 return
             }
         }
-
+        Write-Host "$json"
         # Restore the policy
         Write-Host "Restoring from latest backup: $($backupFile.Name)"
         Update-DeviceCompliancePolicy -JSON $json
