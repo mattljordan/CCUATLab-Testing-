@@ -150,6 +150,26 @@ steps:
         git commit -m "Automated backup of $filename [skip ci]" || echo "No changes to commit"
         git remote set-url origin https://mattljordan:${env:GITHUB_TOKEN}@github.com/$(Build.Repository.Name).git
         git push origin HEAD:$(Build.SourceBranchName)
+           # Backup all iOS Managed App Protection policies with name and date as filename, and commit to git
+            $date = Get-Date -Format 'yyyyMMdd-HHmmss'
+            $allPolicies = Invoke-RestMethod -Uri "https://graph.microsoft.com/beta/deviceAppManagement/managedAppPolicies" -Headers $headers -Method Get
+            $iosPolicies = $allPolicies.value | Where-Object { $_.'@odata.type' -eq '#microsoft.graph.iosManagedAppProtection' }
+
+            foreach ($policy in $iosPolicies) {
+                $policyId = $policy.id
+                $policyName = ($policy.displayName -replace '[^a-zA-Z0-9_-]', '_')
+                $uri = "https://graph.microsoft.com/beta/deviceAppManagement/managedAppPolicies/$policyId"
+                $fullPolicy = Invoke-RestMethod -Uri $uri -Headers $headers -Method Get
+                $filename = "AppProtectionPolicy_${policyName}_$date.json"
+                $fullPolicy | ConvertTo-Json -Depth 10 | Set-Content -Path $filename
+                git add $filename
+            }
+            git config --global user.email "mattljordan@users.noreply.github.com"
+            git config --global user.name "mattljordan"
+            git commit -m "Automated backup of all App Protection Policies $date [skip ci]" || echo "No changes to commit"
+            git remote set-url origin https://mattljordan:${env:GITHUB_TOKEN}@github.com/$(Build.Repository.Name).git
+            git push origin HEAD:$(Build.SourceBranchName)
+
 
         # Step: Update all iOS App Protection Policies' Conditional Launch to the same iOS version
         # Get all managed app policies
