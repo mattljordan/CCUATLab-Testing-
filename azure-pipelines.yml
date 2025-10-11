@@ -167,15 +167,15 @@ steps:
         }
 
             foreach ($policy in $iosPolicies) {
-        $policyId = $policy.id
-        $uri = "https://graph.microsoft.com/beta/deviceAppManagement/managedAppPolicies/$policyId"
-        $update = @{ minimumWarningOsVersion = $Build }
-        $jsonUpdate = $update | ConvertTo-Json -Depth 3
-        try {
-            Invoke-RestMethod -Uri $uri -Headers $headers -Method Patch -Body $jsonUpdate -ContentType 'application/json'
-            Write-Host "Updated App Protection Policy $($policy.displayName) to require minimumWarningOsVersion $Build" -ForegroundColor Green
-        } catch {
-                Write-Host "Failed to update $($policy.displayName): $($_.Exception.Message)" -ForegroundColor Red
+            $policyId = $policy.id
+            $uri = "https://graph.microsoft.com/beta/deviceAppManagement/managedAppPolicies/$policyId"
+            $update = @{ minimumWarningOsVersion = $Build }
+            $jsonUpdate = $update | ConvertTo-Json -Depth 3
+            try {
+                Invoke-RestMethod -Uri $uri -Headers $headers -Method Patch -Body $jsonUpdate -ContentType 'application/json'
+                Write-Host "Updated App Protection Policy $($policy.displayName) to require minimumWarningOsVersion $Build" -ForegroundColor Green
+            } catch {
+                    Write-Host "Failed to update $($policy.displayName): $($_.Exception.Message)" -ForegroundColor Red
+                }
             }
-        }
 
