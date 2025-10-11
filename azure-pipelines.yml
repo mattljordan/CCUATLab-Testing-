@@ -184,5 +184,5 @@ steps:
                 Write-Host "Updated App Protection Policy $($policy.displayName) to require minimumWarningOsVersion $Build" -ForegroundColor Green
             } catch {
                 Write-Host "Failed to update $($policy.displayName): $($_.Exception.Message)" -ForegroundColor Red
-        }
+        }}
 
