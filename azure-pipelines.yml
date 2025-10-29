@@ -89,7 +89,7 @@ steps:
                 [xml]$Updates = (Invoke-WebRequest -Uri $uri -UseBasicParsing -ContentType 'application/xml').Content -replace '[^\x09\x0A\x0D\x20-\xD7FF\xE000-\xFFFD\x10000-x10FFFF]', ''
                 $BuildVersion = @()
                 foreach ($Update in $Updates.rss.channel.Item) {
-                    if (($Update.title -like "*iOS*") -and ($Update.title -like "*26*") -and ($Update.title -notlike "*Beta*")) {
+                    if (($Update.title -like "*iOS*") -and ($Update.title -like "*26*") -and ($Update.title -notlike "*Beta*") -and ($Update.title -notlike "*RC*")) {
                         $BuildVersion += $Update.title
                     }
                 }
