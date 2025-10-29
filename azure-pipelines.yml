@@ -70,7 +70,7 @@ steps:
         # Step 5: Function to update a device compliance policy using Microsoft Graph API via web request
         Function Update-DeviceCompliancePolicy() {
             $graphApiVersion = 'Beta'
-            $Resource = "deviceManagement/deviceCompliancePolicies/dcf4a2bc-4df7-473e-9c23-acb9e7f8c991"
+            $Resource = "deviceManagement/deviceCompliancePolicies/0b49bab9-183e-4b6d-b048-6132939f0bfc"
             try {
                 Test-Json -Json $JSON
                 $uri = "https://graph.microsoft.com/$graphApiVersion/$($Resource)"
@@ -106,7 +106,7 @@ steps:
         $Description = "Updated Operating System Device Compliance Policy on $Date"
 
         # Step 8: Retrieve the specific device compliance policy by ID
-        $OSCompliancePolicies = Get-DeviceCompliancePolicy | Where-Object { ($_.id) -eq "dcf4a2bc-4df7-473e-9c23-acb9e7f8c991" }
+        $OSCompliancePolicies = Get-DeviceCompliancePolicy | Where-Object { $_.id -eq '0b49bab9-183e-4b6d-b048-6132939f0bfc' }
 
         # Step 9: Extract the major version from the current minimum OS version
         $Version = $OSCompliancePolicies.osMinimumVersion.SubString(0, 2)
